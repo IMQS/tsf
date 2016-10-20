@@ -28,8 +28,8 @@ To use tsf, just add `tsf.cpp` to your project, and `#include "tsf.h"`.
 API
 
 ```cpp
-std::string fmt(const char* fs, ...)                                                   // Format to string
-CharLenPair fmt_static_buf(char* staticbuf, size_t staticbuf_len, const char* fs, ...) // Try to use static buffer. Fallback to heap.
-size_t      fmt_write(FILE* file, const char* fs, ...)                                 // Write to file
-size_t      fmt_print(const char* fs, ...)                                             // Write to stdout
+std::string fmt(const char* fs, ...);                                                   // Format to string
+CharLenPair fmt_static_buf(char* staticbuf, size_t staticbuf_len, const char* fs, ...); // Try to use static buffer. Fallback to heap.
+size_t      fmt_write(FILE* file, const char* fs, ...);                                 // Write to file
+size_t      fmt_print(const char* fs, ...);                                             // Write to stdout
 ```
