@@ -137,7 +137,7 @@ std::string fmt(const char* fs, const Args&... args)
 	fmtarg pack_array[num_args + 1]; // +1 for zero args case
 	internal::fmt_pack(pack_array, args...);
 	fmt_context cx;
-	return internal::fmt_core(cx, fs, (ssize_t) num_args, pack_array);
+	return fmt_core(cx, fs, (ssize_t) num_args, pack_array);
 }
 
 // If the formatted string, with null terminator, fits inside staticbuf_len, then the returned pointer is staticbuf,
@@ -151,7 +151,7 @@ CharLenPair fmt_static_buf(char* staticbuf, size_t staticbuf_len, const char* fs
 	fmtarg pack_array[num_args + 1]; // +1 for zero args case
 	internal::fmt_pack(pack_array, args...);
 	fmt_context cx;
-	return internal::fmt_core(cx, fs, (ssize_t) num_args, pack_array, staticbuf, staticbuf_len);
+	return fmt_core(cx, fs, (ssize_t) num_args, pack_array, staticbuf, staticbuf_len);
 }
 
 template<typename... Args>
