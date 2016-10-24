@@ -78,9 +78,9 @@ int main(int argc, char** argv)
 	assert(fmt("%S", std::string("abc")) == "abc");
 	assert(fmt("%s", std::wstring(L"abc")) == "abc");
 	assert(fmt("%S", std::wstring(L"abc")) == "abc");
-	fmt_print("Hello!\n", 1);
-	fmt_print("Hello! %v\n", "abc");
-	fmt_write(stderr, "Hello! %v\n", 123);
+	printfmt("Hello!\n", 1);
+	printfmt("Hello! %v\n", "abc");
+	printfmt(stderr, "Hello! %v\n", 123);
 
 	{
 		assert(fmt("%q %d", "Hello", 1) == "%q Hello");     // I'm unsure about whether we should consume the "Hello" on the %q or not.
@@ -98,10 +98,10 @@ int main(int argc, char** argv)
 	}
 	{
 		char buf[10];
-		CharLenPair res = fmt_static_buf(buf, 10, "%d", 123);
+		StrLenPair res = fmt_buf(buf, 10, "%d", 123);
 		assert(strcmp(res.Str, "123") == 0 && buf == res.Str && res.Len == 3);
 
-		res = fmt_static_buf(buf, 10, "too long to fit %d", 123);
+		res = fmt_buf(buf, 10, "too long to fit %d", 123);
 		assert(strcmp(res.Str, "too long to fit 123") == 0 && buf != res.Str && res.Len == 19);
 		delete[] res.Str;
 	}
