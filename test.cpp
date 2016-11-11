@@ -1,7 +1,62 @@
+#ifdef _WIN32
+#define _CRT_SECURE_NO_WARNINGS 1
+#include <windows.h>
+#endif
 #include <assert.h>
+#include <vector>
+#include <functional>
 #include "tsf.h"
 
 using namespace tsf;
+
+double Now()
+{
+#ifdef _MSC_VER
+	LARGE_INTEGER c, f;
+	QueryPerformanceCounter(&c);
+	QueryPerformanceFrequency(&f);
+	return (double) c.QuadPart / (double) f.QuadPart;
+#else
+	struct timespec tp;
+	clock_gettime(CLOCK_MONOTONIC, &tp);
+	return (double) tp.tv_sec + (double) tp.tv_nsec / 1000000000.0;
+#endif
+}
+
+struct Stats
+{
+	double Mean = 0;
+	double StdDev = 0;
+	double CV = 0;			// https://en.wikipedia.org/wiki/Coefficient_of_variation
+
+	static Stats Compute(const std::vector<double>& samples)
+	{
+		double mean = 0;
+		for (auto s : samples)
+			mean += s;
+		mean /= (double) samples.size();
+		
+		double var = 0;
+		for (auto s : samples)
+			var += (s - mean) * (s - mean);
+		var /= (double) samples.size() - 1;
+		Stats st;
+		st.Mean = mean;
+		st.StdDev = sqrt(var);
+		st.CV = st.StdDev / st.Mean;
+		return st;
+	}
+};
+
+void BenchLowLevel(const char* title, const char* unit, std::function<double()> func, int runs = 10)
+{
+	std::vector<double> samples;
+	for (int i = 0; i < runs; i++)
+		samples.push_back(func());
+	auto stats = Stats::Compute(samples);
+
+	printf("%-20s %.2f %s (+- %.2f) (CV %.3f)\n", title, stats.Mean, unit, stats.StdDev, stats.CV);
+}
 
 template<char EscapeA, char EscapeB>
 size_t my_escape_gen(char* outBuf, size_t outBufSize, const fmtarg& val)
@@ -20,18 +75,58 @@ size_t my_escape_gen(char* outBuf, size_t outBufSize, const fmtarg& val)
 	return len + 2;
 }
 
-static size_t my_escape_q(char* outBuf, size_t outBufSize, const fmtarg& val)
+size_t my_escape_q(char* outBuf, size_t outBufSize, const fmtarg& val)
 {
 	return my_escape_gen<'\'', '\''>(outBuf, outBufSize, val);
 }
 
-static size_t my_escape_Q(char* outBuf, size_t outBufSize, const fmtarg& val)
+size_t my_escape_Q(char* outBuf, size_t outBufSize, const fmtarg& val)
 {
 	return my_escape_gen<'[', ']'>(outBuf, outBufSize, val);
 }
 
+void BenchShortString(char* buf, size_t buf_size)
+{
+	tsf::fmt_buf(buf, buf_size, "A short formatted string with %v %v %v", "three", "string", "replacements");
+}
+
+void BenchInt32(char* buf, size_t buf_size)
+{
+	tsf::fmt_buf(buf, buf_size, "A short formatted string with %v %v %v", 123, 1234567, 123456789);
+}
+
+void BenchInt64(char* buf, size_t buf_size)
+{
+	tsf::fmt_buf(buf, buf_size, "A short formatted string with %v %v %v", (int64_t) 123, (int64_t) 1234567, (int64_t) 123456789);
+}
+
+template<typename Func>
+void Bench(const char* title, Func func, int runs = 10)
+//void Bench(const char* title, void (*func)(char* buf, size_t buf_size), int runs = 10)
+{
+	auto outer_func = [&func]() {
+		char buf[500];
+		int niter = 500 * 1000;
+		auto start = Now();
+		for (int i = 0; i < niter; i++)
+		{
+			func(buf, sizeof(buf));
+		}
+		return 1000000000 * (Now() - start) / niter;
+	};
+	BenchLowLevel(title, "ns", outer_func, runs);
+}
+
+void Benchmark()
+{
+	Bench("short string", BenchShortString);
+	Bench("int32", BenchInt32);
+	Bench("int64", BenchInt64);
+}
+
 int main(int argc, char** argv)
 {
+	Benchmark();
 	assert(fmt("%*s", "abc") == "abc"); // ignore asterisk
 	assert(fmt("xyz") == "xyz");
 	assert(fmt("%5s", "abc") == "  abc");

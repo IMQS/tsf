@@ -9,6 +9,16 @@ namespace tsf {
 
 static const size_t argbuf_arraysize = 16;
 
+#ifdef _WIN32
+	const char* i64Prefix = "I64";
+	const char* wcharPrefix = "";
+	const char wcharType = 'S';
+#else
+	const char* i64Prefix = "ll";
+	const char* wcharPrefix = "l";
+	const char wcharType = 's';
+#endif
+
 class StackBuffer
 {
 public:
@@ -58,6 +68,75 @@ public:
 
 };
 
+static int format_string(char* destination, size_t count, const char* format_str, const char* s)
+{
+	if (format_str[0] == '%' && format_str[1] == 's')
+	{
+		size_t i = 0;
+		for (; i < count; i++)
+		{
+			if (!s[i])
+				return (int) i;
+			destination[i] = s[i];
+		}
+		return -1;
+	}
+	return fmt_snprintf(destination, count, format_str, s);
+}
+
+template<typename TInt>
+static int format_signed(char* destination, size_t count, const char* format_str, TInt v, TInt maxNegative, const char* maxNegativeStr)
+{
+	if (v == maxNegative)
+	{
+		const size_t len = strlen(maxNegativeStr);
+		memcpy(destination, maxNegativeStr, len);
+		return (int) len;
+	}
+	else
+	{
+		char buf[20];
+		TInt tv = v >= 0 ? v : -v;
+		size_t i = 0;
+		for (; tv != 0; i++)
+		{
+			buf[i] = "0123456789"[tv % 10];
+			tv /= 10;
+		}
+		if (v == 0)
+			buf[i++] = '0';
+		else if (v < 0)
+			buf[i++] = '-';
+
+		size_t n = i;
+		i--;
+		for (size_t j = 0; j < n; j++, i--)
+			destination[j] = buf[i];
+		return (int) n;
+	}
+	return fmt_snprintf(destination, count, format_str, v);
+}
+
+static int format_int32(char* destination, size_t count, const char* format_str, int32_t v)
+{
+	if (format_str[0] == '%' && format_str[1] == 'd' && count >= 11)
+		return format_signed<int32_t>(destination, count, format_str, v, INT32_MIN, "-2147483648");
+	else
+		return fmt_snprintf(destination, count, format_str, v);
+}
+
+static int format_int64(char* destination, size_t count, const char* format_str, int64_t v)
+{
+#ifdef _WIN32
+	if (format_str[0] == '%' && format_str[1] == i64Prefix[0] && format_str[2] == i64Prefix[1] && format_str[3] == i64Prefix[2] && format_str[4] == 'd' && count >= 20)
+		return format_signed<int64_t>(destination, count, format_str, v, INT64_MIN, "-9223372036854775808");
+#else
+	if (format_str[0] == '%' && format_str[1] == i64Prefix[0] && format_str[2] == i64Prefix[1] && format_str[3] == 'd' && count >= 20)
+		return format_signed<int64_t>(destination, count, format_str, v, INT64_MIN, "-9223372036854775808");
+#endif
+	return fmt_snprintf(destination, count, format_str, v);
+}
+
 static inline void fmt_settype(char argbuf[argbuf_arraysize], size_t pos, const char* width, char type)
 {
 	if (width != nullptr)
@@ -91,16 +170,6 @@ static inline int fmt_output_with_snprintf(char* outbuf, char fmt_type, char arg
 #define				SETTYPE1(type)			fmt_settype( argbuf, argbufsize, nullptr, type )
 #define				SETTYPE2(width, type)	fmt_settype( argbuf, argbufsize, width, type )
 
-#ifdef _WIN32
-	const char* i64Prefix = "I64";
-	const char* wcharPrefix = "";
-	const char wcharType = 'S';
-#else
-	const char* i64Prefix = "ll";
-	const char* wcharPrefix = "l";
-	const char wcharType = 's';
-#endif
-
 	bool tokenint = false;
 	bool tokenreal = false;
 
@@ -133,14 +202,14 @@ static inline int fmt_output_with_snprintf(char* outbuf, char fmt_type, char arg
 		return 0;
 	case fmtarg::TCStr:
 		SETTYPE2("", 's');
-		return fmt_snprintf(outbuf, outputSize, argbuf, arg->CStr);
+		return format_string(outbuf, outputSize, argbuf, arg->CStr);
 	case fmtarg::TWStr:
 		SETTYPE2(wcharPrefix, wcharType);
 		return fmt_snprintf(outbuf, outputSize, argbuf, arg->WStr);
 	case fmtarg::TI32:
 		if (tokenint)	{ SETTYPE2("", fmt_type); }
 		else			{ SETTYPE2("", 'd'); }
-		return fmt_snprintf(outbuf, outputSize, argbuf, arg->I32);
+		return format_int32(outbuf, outputSize, argbuf, arg->I32);
 	case fmtarg::TU32:
 		if (tokenint)	{ SETTYPE2("", fmt_type); }
 		else			{ SETTYPE2("", 'u'); }
@@ -148,7 +217,8 @@ static inline int fmt_output_with_snprintf(char* outbuf, char fmt_type, char arg
 	case fmtarg::TI64:
 		if (tokenint)	{ SETTYPE2(i64Prefix, fmt_type); }
 		else			{ SETTYPE2(i64Prefix, 'd'); }
-		return fmt_snprintf(outbuf, outputSize, argbuf, arg->I64);
+		return format_int64(outbuf, outputSize, argbuf, arg->I64);
+		//return fmt_snprintf(outbuf, outputSize, argbuf, arg->UI64);
 	case fmtarg::TU64:
 		if (tokenint)	{ SETTYPE2(i64Prefix, fmt_type); }
 		else			{ SETTYPE2(i64Prefix, 'u'); }
