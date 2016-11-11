@@ -163,6 +163,8 @@ int main(int argc, char** argv)
 	assert(fmt("%x", 0xdeadbeefd00df00d) == "deadbeefd00df00d");
 	assert(fmt("%d", (int64_t) 9223372036854775807) == "9223372036854775807");
 	assert(fmt("%d", (uint64_t) 9223372036854775807) == "9223372036854775807");
+	assert(fmt("%v", (int32_t) 0) == "0");
+	assert(fmt("%v", (int64_t) 0) == "0");
 	assert(fmt("%v", INT32_MIN) == "-2147483648");
 	assert(fmt("%v", UINT32_MAX) == "4294967295");
 	assert(fmt("%v", INT64_MIN) == "-9223372036854775808");
