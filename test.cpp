@@ -85,19 +85,29 @@ size_t my_escape_Q(char* outBuf, size_t outBufSize, const fmtarg& val)
 	return my_escape_gen<'[', ']'>(outBuf, outBufSize, val);
 }
 
+void BenchNoTokens(char* buf, size_t buf_size)
+{
+	tsf::fmt_buf(buf, buf_size, "no tokens");
+}
+
 void BenchShortString(char* buf, size_t buf_size)
 {
 	tsf::fmt_buf(buf, buf_size, "A short formatted string with %v %v %v", "three", "string", "replacements");
 }
 
+void BenchOneInt32(char* buf, size_t buf_size)
+{
+	tsf::fmt_buf(buf, buf_size, "%d", 12345);
+}
+
 void BenchInt32(char* buf, size_t buf_size)
 {
-	tsf::fmt_buf(buf, buf_size, "A short formatted string with %v %v %v", 123, 1234567, 123456789);
+	tsf::fmt_buf(buf, buf_size, "A short formatted string with %d %u %x", 123, 1234567, 123456789);
 }
 
 void BenchInt64(char* buf, size_t buf_size)
 {
-	tsf::fmt_buf(buf, buf_size, "A short formatted string with %v %v %v", (int64_t) 123, (int64_t) 1234567, (int64_t) 123456789);
+	tsf::fmt_buf(buf, buf_size, "A short formatted string with %d %u %x", (int64_t) 123, (int64_t) 1234567, (int64_t) 123456789);
 }
 
 template<typename Func>
@@ -119,6 +129,8 @@ void Bench(const char* title, Func func, int runs = 10)
 
 void Benchmark()
 {
+	Bench("no tokens", BenchNoTokens);
+	Bench("one int32", BenchOneInt32);
 	Bench("short string", BenchShortString);
 	Bench("int32", BenchInt32);
 	Bench("int64", BenchInt64);
@@ -133,7 +145,7 @@ int main(int argc, char** argv)
 	assert(fmt("%-5v", "abc") == "abc  ");
 	assert(fmt("%5v", "abc") == "  abc");
 	assert(fmt("%-5s", "abc") == "abc  ");
-	assert(fmt("%%%") == "%");
+	assert(fmt("%%%") == "%%%"); // printf would give you "%", but this seems OK
 	assert(fmt("%s %d", "abc", 123) == "abc 123");
 	assert(fmt("%v %v", "abc", 123) == "abc 123");
 	assert(fmt("%v %v %5v", "abc", 123) == "abc 123 %5v");
@@ -215,6 +227,7 @@ int main(int argc, char** argv)
 			longstr[0] = '%';
 			longstr[1] = 'd';
 			auto res = fmt(longstr, 5);
+			size_t res_len = res.length();
 			assert(res.length() == len - 2);
 			assert(res[0] == '5');
 			assert(res[1] == 'a');

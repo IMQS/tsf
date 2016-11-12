@@ -4,6 +4,8 @@
 
 #include "tsf.h"
 #include <assert.h>
+#include <string.h>
+#include <stdint.h>
 
 namespace tsf {
 
@@ -66,6 +68,8 @@ public:
 		*p = c;
 	}
 
+	size_t RemainingSpace() const { return Capacity - Pos; }
+
 };
 
 static int format_string(char* destination, size_t count, const char* format_str, const char* s)
@@ -84,56 +88,90 @@ static int format_string(char* destination, size_t count, const char* format_str
 	return fmt_snprintf(destination, count, format_str, s);
 }
 
-template<typename TInt>
-static int format_signed(char* destination, size_t count, const char* format_str, TInt v, TInt maxNegative, const char* maxNegativeStr)
+template <typename TInt, int tbase, bool upcase>
+int format_integer(char* destination, TInt value)
 {
-	if (v == maxNegative)
-	{
-		const size_t len = strlen(maxNegativeStr);
-		memcpy(destination, maxNegativeStr, len);
-		return (int) len;
-	}
-	else
-	{
-		char buf[20];
-		TInt tv = v >= 0 ? v : -v;
-		size_t i = 0;
-		for (; tv != 0; i++)
-		{
-			buf[i] = "0123456789"[tv % 10];
-			tv /= 10;
-		}
-		if (v == 0)
-			buf[i++] = '0';
-		else if (v < 0)
-			buf[i++] = '-';
+	// we could theoretically do a lower base than 10, but then our static buffer would need to be bigger.
+	static_assert(tbase >= 10 && tbase <= 36, "base invalid");
+	TInt base = (TInt) tbase;
+	char buf[20];
 
-		size_t n = i;
-		i--;
-		for (size_t j = 0; j < n; j++, i--)
-			destination[j] = buf[i];
-		return (int) n;
-	}
-	return fmt_snprintf(destination, count, format_str, v);
+	const char* lut = upcase ? "ZYXWVUTSRQPONMLKJIHGFEDCBA9876543210123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" : "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz";
+
+	size_t i = 0;
+	TInt tmp_value;
+	do
+	{
+		tmp_value = value;
+		value /= base;
+		buf[i++] = lut[35 + (tmp_value - value * base)];
+	} while (value);
+
+	if (tmp_value < 0)
+		buf[i++] = '-';
+
+	size_t n = i;
+	i--;
+	for (size_t j = 0; j < n; j++, i--)
+		destination[j] = buf[i];
+	return (int) n;
 }
 
 static int format_int32(char* destination, size_t count, const char* format_str, int32_t v)
 {
-	if (format_str[0] == '%' && format_str[1] == 'd' && count >= 11)
-		return format_signed<int32_t>(destination, count, format_str, v, INT32_MIN, "-2147483648");
-	else
-		return fmt_snprintf(destination, count, format_str, v);
+	switch (format_str[1])
+	{
+	case 'd':
+	case 'i':
+		if (count >= 11)
+			return format_integer<int32_t, 10, false>(destination, v);
+		break;
+	case 'u':
+		if (count >= 11)
+			return format_integer<uint32_t, 10, false>(destination, v);
+		break;
+	case 'x':
+		if (count >= 8)
+			return format_integer<uint32_t, 16, false>(destination, v);
+		break;
+	case 'X':
+		if (count >= 8)
+			return format_integer<uint32_t, 16, true>(destination, v);
+		break;
+	}
+	return fmt_snprintf(destination, count, format_str, v);
 }
 
 static int format_int64(char* destination, size_t count, const char* format_str, int64_t v)
 {
 #ifdef _WIN32
-	if (format_str[0] == '%' && format_str[1] == i64Prefix[0] && format_str[2] == i64Prefix[1] && format_str[3] == i64Prefix[2] && format_str[4] == 'd' && count >= 20)
-		return format_signed<int64_t>(destination, count, format_str, v, INT64_MIN, "-9223372036854775808");
+	bool isPlain = format_str[1] == i64Prefix[0] && format_str[2] == i64Prefix[1] && format_str[3] == i64Prefix[2];
 #else
-	if (format_str[0] == '%' && format_str[1] == i64Prefix[0] && format_str[2] == i64Prefix[1] && format_str[3] == 'd' && count >= 20)
-		return format_signed<int64_t>(destination, count, format_str, v, INT64_MIN, "-9223372036854775808");
+	bool isPlain = format_str[1] == i64Prefix[0] && format_str[2] == i64Prefix[1];
 #endif
+	if (isPlain)
+	{
+		switch (format_str[4])
+		{
+		case 'd':
+		case 'i':
+			if (count >= 20)
+				return format_integer<int64_t, 10, false>(destination, v);
+			break;
+		case 'u':
+			if (count >= 20)
+				return format_integer<uint64_t, 10, false>(destination, v);
+			break;
+		case 'x':
+			if (count >= 16)
+				return format_integer<uint64_t, 16, false>(destination, v);
+			break;
+		case 'X':
+			if (count >= 16)
+				return format_integer<uint64_t, 16, true>(destination, v);
+			break;
+		}
+	}
 	return fmt_snprintf(destination, count, format_str, v);
 }
 
@@ -213,7 +251,7 @@ static inline int fmt_output_with_snprintf(char* outbuf, char fmt_type, char arg
 	case fmtarg::TU32:
 		if (tokenint)	{ SETTYPE2("", fmt_type); }
 		else			{ SETTYPE2("", 'u'); }
-		return fmt_snprintf(outbuf, outputSize, argbuf, arg->UI32);
+		return format_int32(outbuf, outputSize, argbuf, arg->UI32);
 	case fmtarg::TI64:
 		if (tokenint)	{ SETTYPE2(i64Prefix, fmt_type); }
 		else			{ SETTYPE2(i64Prefix, 'd'); }
@@ -222,7 +260,7 @@ static inline int fmt_output_with_snprintf(char* outbuf, char fmt_type, char arg
 	case fmtarg::TU64:
 		if (tokenint)	{ SETTYPE2(i64Prefix, fmt_type); }
 		else			{ SETTYPE2(i64Prefix, 'u'); }
-		return fmt_snprintf(outbuf, outputSize, argbuf, arg->UI64);
+		return format_int64(outbuf, outputSize, argbuf, arg->UI64);
 	case fmtarg::TDbl:
 		if (tokenreal)	{ SETTYPE1(fmt_type); }
 		else			{ SETTYPE1('g'); }
@@ -249,6 +287,22 @@ TSF_FMT_API std::string fmt_core(const fmt_context& context, const char* fmt, ss
 
 TSF_FMT_API StrLenPair fmt_core(const fmt_context& context, const char* fmt, ssize_t nargs, const fmtarg* args, char* staticbuf, size_t staticbuf_size)
 {
+	if (nargs == 0)
+	{
+		// This is a common case worth optimizing. Unfortunately we cannot return 'fmt' directly, because it may be a temporary object.
+		size_t len = strlen(fmt);
+		if (staticbuf_size != 0 && len <= staticbuf_size + 1)
+		{
+			memcpy(staticbuf, fmt, len + 1);
+			return StrLenPair{staticbuf, len};
+		}
+		StrLenPair r;
+		r.Str = new char[len + 1];
+		r.Len = len;
+		memcpy(r.Str, fmt, len + 1);
+		return r;
+	}
+
 	ssize_t tokenstart = -1;	// true if we have passed a %, and are looking for the end of the token
 	ssize_t iarg = 0;
 	bool no_args_remaining;
@@ -361,14 +415,24 @@ TSF_FMT_API StrLenPair fmt_core(const fmt_context& context, const char* fmt, ssi
 		}
 		else
 		{
-			switch (fmt[i])
-			{
-			case '%':
+			// Look ahead to find the next % token. Most of our time is spend just
+			// scanning through regular text, so it pays to make that fast.
+			// In order to do that, we determine up front how much space is left in
+			// our buffer, and then fill it up without checking at each character,
+			// whether we have enough space. This turns out to be a big win.
+			ssize_t stopAt = i + output.RemainingSpace();
+			for (; i < stopAt && fmt[i] != '%' && fmt[i] != 0; i++)
+				output.Buffer[output.Pos++] = fmt[i];
+
+			if (fmt[i] == '%')
 				tokenstart = i;
+			else if (fmt[i] == 0)
 				break;
-			default:
-				output.Add(fmt[i]);
-				break;
+			else
+			{
+				// need more buffer space; come around for another pass
+				output.Reserve(1);
+				i--;
 			}
 		}
 	}
