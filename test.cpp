@@ -187,15 +187,15 @@ int main(int argc, char** argv)
 	assert(fmt("%S", std::string("abc")) == "abc");
 	assert(fmt("%s", std::wstring(L"abc")) == "abc");
 	assert(fmt("%S", std::wstring(L"abc")) == "abc");
-	printfmt("Hello!\n", 1);
-	printfmt("Hello! %v\n", "abc");
-	printfmt(stderr, "Hello! %v\n", 123);
+	print("Hello!\n", 1);
+	print("Hello! %v\n", "abc");
+	print(stderr, "Hello! %v\n", 123);
 
 	{
 		assert(fmt("%q %d", "Hello", 1) == "%q Hello");     // I'm unsure about whether we should consume the "Hello" on the %q or not.
 		assert(fmt("%Q %d", "Hello", 2) == "%Q Hello");
 
-		fmt_context cx;
+		context cx;
 		cx.Escape_q = my_escape_q;
 		fmtarg args[2] = {"Hello", 5};
 		fmt_core(cx, "%q %v", 2, args);
