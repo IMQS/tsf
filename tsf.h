@@ -69,6 +69,7 @@ public:
 	enum Types
 	{
 		TNull,	// Used as a sentinel to indicate that no parameter was passed
+		TPtr,
 		TCStr,
 		TWStr,
 		TI32,
@@ -79,6 +80,7 @@ public:
 	};
 	union
 	{
+		const void*		Ptr;
 		const char*		CStr;
 		const wchar_t*	WStr;
 		int32_t			I32;
@@ -90,6 +92,7 @@ public:
 	Types Type;
 
 	fmtarg()								: Type(TNull), CStr(NULL) {}
+	fmtarg(const void* v)					: Type(TPtr), Ptr(v) {}
 	fmtarg(const char* v)					: Type(TCStr), CStr(v) {}
 	fmtarg(const wchar_t* v)				: Type(TWStr), WStr(v) {}
 	fmtarg(const std::string& v)			: Type(TCStr), CStr(v.c_str()) {}
