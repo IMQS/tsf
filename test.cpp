@@ -187,6 +187,7 @@ int main(int argc, char** argv)
 	assert(fmt("%S", std::string("abc")) == "abc");
 	assert(fmt("%s", std::wstring(L"abc")) == "abc");
 	assert(fmt("%S", std::wstring(L"abc")) == "abc");
+	assert(fmt("%c", 'a') == "a");
 	auto ptr = fmt("%p", reinterpret_cast<void*>((size_t) 0xdeadbeef));
 	assert(ptr == "deadbeef" || ptr == "00000000deadbeef" || ptr == "DEADBEEF" || ptr == "00000000DEADBEEF");
 	print("Hello!\n", 1);
