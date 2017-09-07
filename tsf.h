@@ -191,6 +191,8 @@ template<typename... Args>
 size_t print(FILE* file, const char* fs, const Args&... args)
 {
 	auto res = fmt(fs, args...);
+	if (res.size() == 0)
+		return 0;
 	return fwrite(res.c_str(), 1, res.length(), file);
 }
 
