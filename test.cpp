@@ -9,8 +9,7 @@
 
 using namespace tsf;
 
-double Now()
-{
+double Now() {
 #ifdef _MSC_VER
 	LARGE_INTEGER c, f;
 	QueryPerformanceCounter(&c);
@@ -23,33 +22,30 @@ double Now()
 #endif
 }
 
-struct Stats
-{
-	double Mean = 0;
+struct Stats {
+	double Mean   = 0;
 	double StdDev = 0;
-	double CV = 0;			// https://en.wikipedia.org/wiki/Coefficient_of_variation
+	double CV     = 0; // https://en.wikipedia.org/wiki/Coefficient_of_variation
 
-	static Stats Compute(const std::vector<double>& samples)
-	{
+	static Stats Compute(const std::vector<double>& samples) {
 		double mean = 0;
 		for (auto s : samples)
 			mean += s;
 		mean /= (double) samples.size();
-		
+
 		double var = 0;
 		for (auto s : samples)
 			var += (s - mean) * (s - mean);
 		var /= (double) samples.size() - 1;
 		Stats st;
-		st.Mean = mean;
+		st.Mean   = mean;
 		st.StdDev = sqrt(var);
-		st.CV = st.StdDev / st.Mean;
+		st.CV     = st.StdDev / st.Mean;
 		return st;
 	}
 };
 
-void BenchLowLevel(const char* title, const char* unit, std::function<double()> func, int runs = 10)
-{
+void BenchLowLevel(const char* title, const char* unit, std::function<double()> func, int runs = 10) {
 	std::vector<double> samples;
 	for (int i = 0; i < runs; i++)
 		samples.push_back(func());
@@ -58,9 +54,8 @@ void BenchLowLevel(const char* title, const char* unit, std::function<double()> 
 	printf("%-20s %.2f %s (+- %.2f) (CV %.3f)\n", title, stats.Mean, unit, stats.StdDev, stats.CV);
 }
 
-template<char EscapeA, char EscapeB>
-size_t my_escape_gen(char* outBuf, size_t outBufSize, const fmtarg& val)
-{
+template <char EscapeA, char EscapeB>
+size_t my_escape_gen(char* outBuf, size_t outBufSize, const fmtarg& val) {
 	if (val.Type != fmtarg::TCStr)
 		return 0;
 
@@ -75,51 +70,43 @@ size_t my_escape_gen(char* outBuf, size_t outBufSize, const fmtarg& val)
 	return len + 2;
 }
 
-size_t my_escape_q(char* outBuf, size_t outBufSize, const fmtarg& val)
-{
+size_t my_escape_q(char* outBuf, size_t outBufSize, const fmtarg& val) {
 	return my_escape_gen<'\'', '\''>(outBuf, outBufSize, val);
 }
 
-size_t my_escape_Q(char* outBuf, size_t outBufSize, const fmtarg& val)
-{
+size_t my_escape_Q(char* outBuf, size_t outBufSize, const fmtarg& val) {
 	return my_escape_gen<'[', ']'>(outBuf, outBufSize, val);
 }
 
-void BenchNoTokens(char* buf, size_t buf_size)
-{
+void BenchNoTokens(char* buf, size_t buf_size) {
 	tsf::fmt_buf(buf, buf_size, "no tokens");
 }
 
-void BenchShortString(char* buf, size_t buf_size)
-{
+void BenchShortString(char* buf, size_t buf_size) {
 	tsf::fmt_buf(buf, buf_size, "A short formatted string with %v %v %v", "three", "string", "replacements");
 }
 
-void BenchOneInt32(char* buf, size_t buf_size)
-{
+void BenchOneInt32(char* buf, size_t buf_size) {
 	tsf::fmt_buf(buf, buf_size, "%d", 12345);
 }
 
-void BenchInt32(char* buf, size_t buf_size)
-{
+void BenchInt32(char* buf, size_t buf_size) {
 	tsf::fmt_buf(buf, buf_size, "A short formatted string with %d %u %x", 123, 1234567, 123456789);
 }
 
-void BenchInt64(char* buf, size_t buf_size)
-{
+void BenchInt64(char* buf, size_t buf_size) {
 	tsf::fmt_buf(buf, buf_size, "A short formatted string with %d %u %x", (int64_t) 123, (int64_t) 1234567, (int64_t) 123456789);
 }
 
-template<typename Func>
+template <typename Func>
 void Bench(const char* title, Func func, int runs = 10)
 //void Bench(const char* title, void (*func)(char* buf, size_t buf_size), int runs = 10)
 {
 	auto outer_func = [&func]() {
 		char buf[500];
-		int niter = 500 * 1000;
+		int  niter = 500 * 1000;
 		auto start = Now();
-		for (int i = 0; i < niter; i++)
-		{
+		for (int i = 0; i < niter; i++) {
 			func(buf, sizeof(buf));
 		}
 		return 1000000000 * (Now() - start) / niter;
@@ -127,8 +114,7 @@ void Bench(const char* title, Func func, int runs = 10)
 	BenchLowLevel(title, "ns", outer_func, runs);
 }
 
-void Benchmark()
-{
+void Benchmark() {
 	Bench("no tokens", BenchNoTokens);
 	Bench("one int32", BenchOneInt32);
 	Bench("short string", BenchShortString);
@@ -136,8 +122,7 @@ void Benchmark()
 	Bench("int64", BenchInt64);
 }
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
 	Benchmark();
 	assert(fmt("%*s", "abc") == "abc"); // ignore asterisk
 	assert(fmt("xyz") == "xyz");
@@ -176,7 +161,15 @@ int main(int argc, char** argv)
 	assert(fmt("%d", (int64_t) 9223372036854775807) == "9223372036854775807");
 	assert(fmt("%d", (uint64_t) 9223372036854775807) == "9223372036854775807");
 	assert(fmt("%v", (int32_t) 0) == "0");
+	assert(fmt("%v", (uint32_t) 0) == "0");
 	assert(fmt("%v", (int64_t) 0) == "0");
+	assert(fmt("%v", (uint64_t) 0) == "0");
+	assert(fmt("%v", (int) 5) == "5");
+	assert(fmt("%v", (unsigned) 5) == "5");
+	assert(fmt("%v", (long) 5) == "5");
+	assert(fmt("%v", (unsigned long) 5) == "5");
+	assert(fmt("%v", (long long) 5) == "5");
+	assert(fmt("%v", (unsigned long long) 5) == "5");
 	assert(fmt("%v", INT32_MIN) == "-2147483648");
 	assert(fmt("%v", UINT32_MAX) == "4294967295");
 	assert(fmt("%v", INT64_MIN) == "-9223372036854775808");
@@ -195,21 +188,21 @@ int main(int argc, char** argv)
 	print(stderr, "Hello! %v\n", 123);
 
 	{
-		assert(fmt("%q %d", "Hello", 1) == "%q Hello");     // I'm unsure about whether we should consume the "Hello" on the %q or not.
+		assert(fmt("%q %d", "Hello", 1) == "%q Hello"); // I'm unsure about whether we should consume the "Hello" on the %q or not.
 		assert(fmt("%Q %d", "Hello", 2) == "%Q Hello");
 
 		context cx;
-		cx.Escape_q = my_escape_q;
+		cx.Escape_q    = my_escape_q;
 		fmtarg args[2] = {"Hello", 5};
 		fmt_core(cx, "%q %v", 2, args);
 		assert(fmt_core(cx, "%q %v", 2, args) == "'Hello' 5");
 
-		cx.Escape_Q = my_escape_Q;
+		cx.Escape_Q     = my_escape_Q;
 		fmtarg argsQ[3] = {"Hello", "Hello", 5};
 		assert(fmt_core(cx, "%q %Q %v", 3, argsQ) == "'Hello' [Hello] 5");
 	}
 	{
-		char buf[10];
+		char       buf[10];
 		StrLenPair res = fmt_buf(buf, 10, "%d", 123);
 		assert(strcmp(res.Str, "123") == 0 && buf == res.Str && res.Len == 3);
 
@@ -218,19 +211,18 @@ int main(int argc, char** argv)
 		delete[] res.Str;
 	}
 	{
-		assert(fmt("%0000000000000d", 5) == "5"); // valid
+		assert(fmt("%0000000000000d", 5) == "5");                 // valid
 		assert(fmt("%00000000000000d", 5) == "%00000000000000d"); // invalid - too long
 	}
 	{
-		for (int len = 10; len < 1000; len++)
-		{
+		for (int len = 10; len < 1000; len++) {
 			char* longstr = new char[len];
 			memset(longstr, 'a', len);
 			longstr[len - 1] = 0;
-			longstr[0] = '%';
-			longstr[1] = 'd';
-			auto res = fmt(longstr, 5);
-			size_t res_len = res.length();
+			longstr[0]       = '%';
+			longstr[1]       = 'd';
+			auto   res       = fmt(longstr, 5);
+			size_t res_len   = res.length();
 			assert(res.length() == len - 2);
 			assert(res[0] == '5');
 			assert(res[1] == 'a');
