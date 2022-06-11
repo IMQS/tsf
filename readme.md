@@ -1,7 +1,8 @@
 # tsf - A type safe printf-compatible C++ library
 
 - Type safe
-- Small (234 lines in .h file, 465 lines in .cpp file)
+- Small (about 700 lines)
+- Use as either two files (`tsf.cpp` and `tsf.h`, or header-only `tsf.hpp`)
 - Compatible with printf formatting rules
 - Optional interface to provide own buffer
 - Public domain license
@@ -16,6 +17,7 @@ tsf::fmt("%v", std::wstring("abc"))  // -->  "abc"         <== std::wstring
 tsf::fmt("%.3f", 25.5)               // -->  "25.500"      <== Use format strings as usual
 tsf::print("%v", "Hello world")      // -->  "Hello world" <== Print to stdout
 tsf::print(stderr, "err %v", 5)      // -->  "err 5"       <== Print to stderr (or any other FILE*)
+tsf::fmt_buf(buf, bufLen, "%v", 5)   // Writes to user-provided buffer. See header for more.
 ```
 
 ## Implementation
