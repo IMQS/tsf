@@ -1,34 +1,33 @@
 # tsf - A type safe printf-compatible C++ library
 
 - Type safe
-- Small (about 700 lines)
+- Small (less than 700 lines)
 - Use as either two files (`tsf.cpp` and `tsf.h`, or header-only `tsf.hpp`)
 - Compatible with printf formatting rules
 - Optional interface to provide own buffer
-- Public domain license
 
 ## Example
 
 ```cpp
-tsf::fmt("%v %v", "abc", 123)        // -->  "abc 123"     <== Use %v as a generic value type
-tsf::fmt("%s %d", "abc", 123)        // -->  "abc 123"     <== Auto fixup if your type is wrong
-tsf::fmt("%v", std::string("abc"))   // -->  "abc"         <== std::string
-tsf::fmt("%v", std::wstring("abc"))  // -->  "abc"         <== std::wstring
-tsf::fmt("%.3f", 25.5)               // -->  "25.500"      <== Use format strings as usual
-tsf::print("%v", "Hello world")      // -->  "Hello world" <== Print to stdout
-tsf::print(stderr, "err %v", 5)      // -->  "err 5"       <== Print to stderr (or any other FILE*)
-tsf::fmt_buf(buf, bufLen, "%v", 5)   // Writes to user-provided buffer. See header for more.
+tsf::fmt("%v %v", "abc", 123);        // -->  "abc 123"     <== Use %v as a generic value type
+tsf::fmt("%s %d", "abc", 123);        // -->  "abc 123"     <== Auto fixup if your type is wrong
+tsf::fmt("%v", std::string("abc"));   // -->  "abc"         <== std::string
+tsf::fmt("%v", std::wstring("abc"));  // -->  "abc"         <== std::wstring
+tsf::fmt("%.3f", 25.5);               // -->  "25.500"      <== Use format strings as usual
+tsf::print("%v", "Hello world");      // -->  "Hello world" <== Print to stdout
+tsf::print(stderr, "err %v", 5);      // -->  "err 5"       <== Print to stderr (or any other FILE*)
+tsf::fmt_buf(buf, bufLen, "%v", 5);   // Writes to user-provided buffer. See header for more.
 ```
 
 ## Implementation
 
-We use snprintf as a backend, so all of the regular formatting
+`tsf` uses snprintf as a backend, so all of the regular formatting
 commands that you expect from the printf family of functions work.
 This makes the code much smaller than other implementations.
 
-We do however implement some of the common operations ourselves,
-such as emitting integers or plain strings, because most snprintf
-implementations are actually very slow, and we can gain a lot of
+To improve speed, some common operations are implemented locally
+(e.g. emitting integers or plain strings). Most snprintf
+implementations are actually quite slow, and we can gain a lot of
 speed by doing these common operations ourselves.
 
 ## Known unsupported features
@@ -45,10 +44,12 @@ rewritten into `%s`.
 
 Generally, you just use `%v`, which stands for "value".
 
-tsf is very light on templates - it uses them only for type safe variadic argument lists,
+`tsf` is very light on templates - it uses them only for type safe variadic argument lists,
 so impact on compile times is negligible.
 
-To use tsf, just add `tsf.cpp` to your project, and `#include "tsf.h"`.
+To use tsf, **choose one of**:
+1. Add `tsf.cpp` to your project, and `#include "tsf.h"`.
+2. `#include "tsf.hpp"` wherever you need it.
 
 ## API
 
@@ -63,8 +64,8 @@ By providing a cast operator to `fmtarg`, you can get an arbitrary type
 supported as an argument, provided it fits into one of the molds of the
 printf family of arguments.
 
-We also support two custom types: `%Q` and `%q`. In order to use these, you need to provide your own
-implementation that wraps one of the lower level functions, and provides a 'context' object with
+`tsf` also support two custom types: `%Q` and `%q`. In order to use these, you need to provide your own
+implementation that wraps one of the lower level `fmt_core` functions, and provides a `context` object with
 custom functions defined for `Escape_Q` and `Escape_q`. These were originally added in order to provide
 quoting and escaping for SQL identifiers and SQL string literals.
 
